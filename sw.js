@@ -1,12 +1,10 @@
-const CACHE = "fuelmind-v1";
+const CACHE = "fuelmind-v1.2-ios-restore";
+const CORE = ["./manifest.webmanifest"];
 
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE)
-      .then(cache => cache.addAll([
-        "./",
-        "./index.html"
-      ]))
+      .then(cache => cache.addAll(CORE))
       .then(() => self.skipWaiting())
   );
 });
@@ -28,8 +26,32 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
+  const req = event.request;
+
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req)
+        .then(resp => {
+          const copy = resp.clone();
+          caches.open(CACHE)
+            .then(cache => cache.put("./index.html", copy));
+          return resp;
+        })
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then(cached => cached || fetch(event.request))
+    caches.match(req)
+      .then(cached =>
+        cached ||
+        fetch(req).then(resp => {
+          const copy = resp.clone();
+          caches.open(CACHE)
+            .then(cache => cache.put(req, copy));
+          return resp;
+        })
+      )
   );
 });
