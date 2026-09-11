@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FuelMind">
 <meta name="description" content="تطبيق شخصي لتسجيل وتحليل المصروفات اليومية">
-
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
 :root{
   --bg:#07131f;--surface:#0d1d2e;--card:#11243a;--card2:#162b44;--line:#263c55;
@@ -122,7 +123,7 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
     <div class="topline">
       <div class="brand">
         <div class="logo">F</div>
-        <div class="brandtext"><strong>FuelMind</strong><span>المصروف الذكي · النسخة النهائية</span></div>
+        <div class="brandtext"><strong>FuelMind</strong><span>المصروف الذكي · النسخة النهائية الآمنة</span></div>
       </div>
       <div class="save" id="save-state">جارٍ التحميل</div>
     </div>
@@ -396,22 +397,7 @@ var LEGACY_CATEGORY_MAP = {
   "طوارئ وغير مصنف":"غير مصنف مؤقتًا"
 };
 
-var SEED_OPENING = {
-  "وقود":571.42,
-  "كهرباء":1547.17,
-  "مخالفات مرورية":338,
-  "سداد ديون أو سلف قديمة":2000,
-  "تموين وبقالة أساسية":1510.72,
-  "دعم عائلي دوري":536.25,
-  "خضار وفواكه":167,
-  "عامل أو عاملة منزلية":300,
-  "مصروف المدرسة اليومي":450,
-  "مطاعم عائلية":489,
-  "صيدلية وأدوية":66.95,
-  "تأمين وفحص وتجديد":40.84,
-  "مساهمات وقطة":175,
-  "مشتريات اختيارية":850.5
-};
+var SEED_OPENING = {};
 
 var VEHICLES=[{id:"dodge",name:"دودج"},{id:"highlander",name:"هايلاندر"}];
 var PROPERTIES=[{id:"my_home",name:"بيتي"},{id:"mother_home",name:"بيت أمي"},{id:"father_building",name:"عمارة أبوي"}];
@@ -420,7 +406,7 @@ var ELECTRIC_METERS=[
   {id:"my_home_2",property:"my_home",name:"عداد بيتي 2"},
   {id:"mother_home_1",property:"mother_home",name:"عداد بيت أمي"}
 ];
-var DEFAULT_CONFIG={budget:9500,cycleDays:30,cycleStart:"2026-08-27",savingsTarget:1000};
+var DEFAULT_CONFIG={budget:10000,cycleDays:30,cycleStart:"",savingsTarget:0};
 var categories=[],expenses=[],history=[],config=Object.assign({},DEFAULT_CONFIG);
 var currentView="home",pendingDelete=null,undoTimer=null,showUnsyncedOnly=false,suggestedName=null,editingId=null;
 
@@ -497,29 +483,13 @@ async function load(){
   categories=mergeCategories(parse(await Store.get("categories"),null));
   var er=parse(await Store.get("expenses"),null);
   if(Array.isArray(er))expenses=er.filter(function(e){return e&&e.id&&e.date&&e.category&&Number(e.amount)>0}).map(function(e){e.amount=Number(e.amount);return e});
-  else expenses=Object.keys(SEED_OPENING).map(function(cat){return {id:uid(),date:"2026-08-27",category:cat,vehicle:cat==="وقود"?"dodge":"",property:"",meter:"",desc:"رصيد سابق (منقول من السجل)",note:"",amount:SEED_OPENING[cat],synced:true}});
-  config=Object.assign({},DEFAULT_CONFIG,parse(await Store.get("cycle-config"),{})||{});
-  config.budget=Math.max(1,Number(config.budget)||9500);config.cycleDays=Math.min(62,Math.max(1,Number(config.cycleDays)||30));config.savingsTarget=Math.max(0,Number(config.savingsTarget)||0);
+  else expenses=[];
+  var savedConfig=parse(await Store.get("cycle-config"),{})||{};
+  config=Object.assign({},DEFAULT_CONFIG,savedConfig);
+  if(!config.cycleStart) config.cycleStart=todayISO();
+  config.budget=Math.max(1,Number(config.budget)||10000);config.cycleDays=Math.min(62,Math.max(1,Number(config.cycleDays)||30));config.savingsTarget=Math.max(0,Number(config.savingsTarget)||0);
   history=parse(await Store.get("cycle-history"),[]);if(!Array.isArray(history))history=[];
   if(migrate())await saveExpenses();
-
-  // Added by request: dinner on 2026-09-10, SAR 34.
-  var dinnerId="user-expense-2026-09-10-dinner-34";
-  if(!expenses.some(function(e){return e.id===dinnerId;})){
-    expenses.push({
-      id:dinnerId,
-      date:"2026-09-10",
-      category:"مطاعم عائلية",
-      vehicle:"",
-      property:"",
-      meter:"",
-      desc:"عشاء",
-      note:"",
-      amount:34,
-      synced:false
-    });
-    await saveExpenses();
-  }
 
   await Store.set("categories",JSON.stringify(categories));
   syncSettings();
@@ -780,7 +750,9 @@ function bind(){
 }
 async function init(){
   bind();await load();render();setSave("جاهز",true);
-  
+  if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){
+    try{await navigator.serviceWorker.register("./sw.js")}catch(e){}
+  }
 }
 init();
 })();
