@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FuelMind">
 <meta name="description" content="تطبيق شخصي لتسجيل وتحليل المصروفات اليومية">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'; worker-src 'self'; media-src 'none'; frame-src 'none'">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{
@@ -114,6 +116,21 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
 .hidden{display:none!important}
 @media(max-width:390px){.hero-main{grid-template-columns:110px 1fr}.ring{width:108px;height:108px}.ring-content strong{font-size:24px}.brow{grid-template-columns:100px 1fr 52px}.asset-grid{grid-template-columns:1fr 1fr}.setting input{width:112px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* FuelMind 1.3 — smart entry, privacy and safety */
+.detail-chips{display:flex;gap:6px;overflow:auto;padding:2px 0 4px;scrollbar-width:none}.detail-chips::-webkit-scrollbar{display:none}
+.detail-chip{flex:0 0 auto;border:1px solid var(--line);background:rgba(22,43,68,.82);color:var(--text);border-radius:999px;padding:7px 10px;font-size:9.5px;touch-action:manipulation}.detail-chip:active{transform:scale(.98)}
+.field-hint{font-size:8.7px;color:var(--muted);margin-top:5px;line-height:1.5}
+.duplicate-box{display:none;margin:9px 0;border:1px solid rgba(221,169,75,.38);background:rgba(221,169,75,.07);border-radius:12px;padding:10px}.duplicate-box.show{display:block}.duplicate-box strong{font-size:10.5px;color:var(--gold);display:block;margin-bottom:3px}.duplicate-box p{font-size:9px;color:var(--muted);line-height:1.55;margin:0 0 8px}.duplicate-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.duplicate-actions button{padding:9px}
+.safety-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.safety-badge{border:1px solid var(--line);background:var(--card2);border-radius:11px;padding:10px}.safety-badge strong{display:block;font-size:10px}.safety-badge span{display:block;font-size:8.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+.security-note{font-size:9px;color:var(--muted);line-height:1.65;margin:9px 0 0}.security-note b{color:var(--teal)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);margin-top:9px}.toggle-row span{font-size:10px;color:var(--muted)}
+.switch{position:relative;width:45px;height:26px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:0;flex:0 0 auto}.switch:before{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.18s}.switch.on{background:rgba(56,184,167,.16);border-color:rgba(56,184,167,.45)}.switch.on:before{right:22px;background:var(--teal)}
+.recovery-status{font-size:8.8px;color:var(--muted);line-height:1.55;margin-top:7px}
+body.privacy-mode .hero .metric .v,body.privacy-mode .ring-content strong,body.privacy-mode .txamt,body.privacy-mode .asset .sum,body.privacy-mode .meter .v,body.privacy-mode .mini .value,body.privacy-mode .bval,body.privacy-mode .wamt{filter:blur(7px);user-select:none}
+button:disabled{opacity:.55;cursor:default}
+input[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 3px rgba(235,107,89,.07)}
+
 </style>
 </head>
 <body>
@@ -122,7 +139,7 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
     <div class="topline">
       <div class="brand">
         <div class="logo">F</div>
-        <div class="brandtext"><strong>FuelMind</strong><span>المصروف الذكي · النسخة النهائية الآمنة 1.2</span></div>
+        <div class="brandtext"><strong>FuelMind</strong><span>المصروف الذكي · النسخة النهائية الآمنة 1.3</span></div>
       </div>
       <div class="save" id="save-state">جارٍ التحميل</div>
     </div>
@@ -179,13 +196,15 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
       <div class="pagehead"><h1>سجّل المصروف.</h1><p>اكتب الوصف، وسأقترح التصنيف والمركبة أو العقار عندما أستطيع.</p></div>
       <div class="form-card">
         <div class="amount-wrap"><label for="f-amount">المبلغ بالريال</label><input id="f-amount" class="amount-input" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0"></div>
-        <div class="field"><label for="f-desc">ما الذي دفعته؟</label><input id="f-desc" type="text" maxlength="140" placeholder="مثال: آيسكريم للأبناء، بنزين للدودج، تريلة موية لعمارة أبوي"><div class="suggestion" id="suggestion">اقتراح: <button id="apply-suggestion" type="button"></button></div></div>
+        <div class="field"><label for="f-desc">ما الذي دفعته؟</label><input id="f-desc" type="text" maxlength="140" autocomplete="off" spellcheck="false" placeholder="مثال: آيسكريم للأبناء، بنزين للدودج، تريلة موية لعمارة أبوي"><div class="suggestion" id="suggestion">اقتراح: <button id="apply-suggestion" type="button"></button></div></div>
         <div class="field"><label for="f-category">التصنيف</label><select id="f-category"></select></div>
+        <div class="field" id="detail-chips-field"><label>اختصارات الوصف</label><div class="detail-chips" id="detail-chips"></div><div class="field-hint">تتغير تلقائيًا حسب التصنيف وتختصر الإدخال المتكرر.</div></div>
         <div class="field hidden" id="vehicle-field"><label for="f-vehicle">المركبة</label><select id="f-vehicle"><option value="">اختر المركبة</option><option value="dodge">دودج</option><option value="highlander">هايلاندر</option></select></div>
         <div class="field hidden" id="property-field"><label for="f-property">العقار / الجهة</label><select id="f-property"></select></div>
         <div class="field hidden" id="meter-field"><label for="f-meter">عداد الكهرباء</label><select id="f-meter"></select></div>
-        <div class="row2"><div class="field"><label for="f-date">التاريخ</label><input id="f-date" type="date"></div><div class="field"><label for="f-note">ملاحظة اختيارية</label><input id="f-note" type="text" maxlength="80" placeholder="تفصيل إضافي"></div></div>
-        <div class="error" id="form-error"></div>
+        <div class="row2"><div class="field"><label for="f-date">التاريخ</label><input id="f-date" type="date"></div><div class="field"><label for="f-note">ملاحظة اختيارية</label><input id="f-note" type="text" maxlength="80" autocomplete="off" placeholder="تفصيل إضافي"></div></div>
+        <div class="duplicate-box" id="duplicate-box"><strong>قد تكون العملية مكررة</strong><p id="duplicate-copy">وجدت عملية مطابقة في السجل. راجعها قبل الحفظ حتى لا يتضاعف المصروف.</p><div class="duplicate-actions"><button class="secondary" id="duplicate-cancel" type="button">مراجعة</button><button class="danger" id="duplicate-force" type="button">حفظ رغم ذلك</button></div></div>
+        <div class="error" id="form-error" role="alert" aria-live="polite"></div>
         <button class="primary" id="add-expense" type="button">حفظ المصروف</button>
       </div>
 
@@ -248,14 +267,30 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
           <button class="danger" id="new-cycle" type="button">بدء دورة جديدة</button>
         </div>
         <input id="restore-file" type="file" accept=".json,application/json,text/plain" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none">
-        <div style="margin-top:12px;border-top:1px solid var(--hairline);padding-top:12px">
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
           <div style="font-size:11px;font-weight:700;margin-bottom:4px">استعادة بديلة للآيفون</div>
           <div style="font-size:9.5px;color:var(--muted);line-height:1.7;margin-bottom:8px">إذا لم تستجب نافذة الملفات، الصق رمز الاستعادة الخاص بك هنا ثم اضغط استعادة من الرمز.</div>
-          <textarea id="restore-token" rows="3" placeholder="الصق رمز الاستعادة هنا" style="width:100%;resize:vertical;background:var(--navy-panel-2);border:1px solid var(--hairline);color:var(--ink);border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:11px"></textarea>
+          <textarea id="restore-token" rows="3" placeholder="الصق رمز الاستعادة هنا" style="width:100%;resize:vertical;background:var(--card2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:11px"></textarea>
           <button class="secondary" id="restore-token-btn" type="button" style="width:100%;margin-top:8px">استعادة من الرمز</button>
           <div id="restore-status" style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.6"></div>
         </div>
       </div>
+
+      <div class="section-title"><h2>الخصوصية ونقاط الأمان</h2><span>حماية محلية</span></div>
+      <div class="card">
+        <div class="safety-grid">
+          <div class="safety-badge"><strong>محلي على الجهاز</strong><span>لا يرسل FuelMind بيانات المصروفات إلى خادم خارجي.</span></div>
+          <div class="safety-badge"><strong>تحقق عند الحفظ</strong><span>يتم التأكد من كتابة البيانات بعد كل عملية مهمة.</span></div>
+        </div>
+        <div class="toggle-row"><span>إخفاء المبالغ عند عرض التطبيق</span><button class="switch" id="privacy-toggle" type="button" role="switch" aria-checked="false" aria-label="إخفاء المبالغ"></button></div>
+        <div class="datagrid" style="margin-top:8px">
+          <button class="secondary" id="make-recovery" type="button">إنشاء نقطة أمان</button>
+          <button class="secondary" id="restore-recovery" type="button">استعادة نقطة الأمان</button>
+        </div>
+        <div class="recovery-status" id="recovery-status">لم يتم إنشاء نقطة أمان يدوية بعد.</div>
+        <p class="security-note"><b>مهم:</b> لا تضع ملفات النسخ الاحتياطية أو بياناتك المالية داخل مستودع GitHub العام. الكود فقط هو الذي يُرفع للمستودع.</p>
+      </div>
+
       <div class="card" id="install-card">
         <div style="font-size:11px;font-weight:700;margin-bottom:4px">تثبيت FuelMind على الآيفون</div>
         <div style="font-size:9.5px;color:var(--muted);line-height:1.7">بعد فتح النسخة المستضافة في Safari: مشاركة ← إضافة إلى الشاشة الرئيسية. يعمل التطبيق بعد ذلك بواجهة مستقلة ويحتفظ ببياناته على الجهاز.</div>
@@ -277,7 +312,7 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
   </div>
 </nav>
 
-<div class="toast" id="toast"><span id="toast-text"></span><button id="undo-btn" class="hidden" type="button">تراجع</button></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="undo-btn" class="hidden" type="button">تراجع</button></div>
 
 <div class="modal" id="cycle-modal">
   <div class="sheet"><h3>بدء دورة جديدة</h3><p id="cycle-modal-copy">سيتم أرشفة الدورة الحالية أولًا ثم يبدأ سجل جديد من تاريخ اليوم. لن تُمسح البيانات إذا فشل الأرشيف.</p><div class="row2"><button class="secondary" id="cycle-cancel" type="button">إلغاء</button><button class="danger" id="cycle-confirm" type="button">أرشفة وبدء جديد</button></div></div>
@@ -412,9 +447,22 @@ var ELECTRIC_METERS=[
   {id:"my_home_2",property:"my_home",name:"عداد بيتي 2"},
   {id:"mother_home_1",property:"mother_home",name:"عداد بيت أمي"}
 ];
+var DETAIL_PRESETS={
+  "سناكات وحلويات الأبناء":["آيسكريم","عصير","بسكويت","حلاوة","تشيبس"],
+  "تموين وبقالة أساسية":["تموين","بقالة","خبز","حليب","مياه"],
+  "خضار وفواكه":["خضار","فواكه"],
+  "وقود":["بنزين"],
+  "مطاعم عائلية":["عشاء","غداء","فطور"],
+  "كهرباء":["فاتورة كهرباء"],
+  "مياه صهريج/تريلة":["تريلة موية"],
+  "مصروف بيت أمي":["مصروف بيت أمي"],
+  "عامل أو عاملة منزلية":["عامل النظافة"],
+  "مصروف المدرسة اليومي":["مصروف المدرسة"],
+  "مخالفات مرورية":["مخالفة مرورية"]
+};
 var DEFAULT_CONFIG={budget:10000,cycleDays:30,cycleStart:"",savingsTarget:0};
 var categories=[],expenses=[],history=[],config=Object.assign({},DEFAULT_CONFIG);
-var currentView="home",pendingDelete=null,undoTimer=null,showUnsyncedOnly=false,suggestedName=null,editingId=null;
+var currentView="home",pendingDelete=null,undoTimer=null,showUnsyncedOnly=false,suggestedName=null,editingId=null,pendingCandidate=null,addBusy=false;
 
 function $(id){return document.getElementById(id)}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
@@ -456,11 +504,26 @@ var Store={
   }
 };
 function setSave(text,ok){var e=$("save-state");if(!e)return;e.textContent=text;e.classList.toggle("ok",!!ok)}
-async function saveAll(){await Store.set("expenses",JSON.stringify(expenses));await Store.set("categories",JSON.stringify(categories));await Store.set("cycle-config",JSON.stringify(config));await Store.set("cycle-history",JSON.stringify(history))}
-async function saveExpenses(){return Store.set("expenses",JSON.stringify(expenses))}
-async function saveConfig(){return Store.set("cycle-config",JSON.stringify(config))}
-async function saveHistory(){return Store.set("cycle-history",JSON.stringify(history))}
+async function verifiedSet(k,v){
+  if(!(await Store.set(k,v)))return false;
+  var back=await Store.get(k);return back===v;
+}
+async function saveAll(){
+  var a=await verifiedSet("expenses",JSON.stringify(expenses));
+  var b=await verifiedSet("categories",JSON.stringify(categories));
+  var c=await verifiedSet("cycle-config",JSON.stringify(config));
+  var d=await verifiedSet("cycle-history",JSON.stringify(history));
+  return a&&b&&c&&d;
+}
+async function saveExpenses(){return verifiedSet("expenses",JSON.stringify(expenses))}
+async function saveConfig(){return verifiedSet("cycle-config",JSON.stringify(config))}
+async function saveHistory(){return verifiedSet("cycle-history",JSON.stringify(history))}
 function parse(raw,fallback){try{return raw?JSON.parse(raw):fallback}catch(e){return fallback}}
+function snapshotPayload(reason){return{version:"1.3",reason:reason||"نقطة أمان",createdAt:new Date().toISOString(),config:Object.assign({},config),categories:categories.slice(),expenses:expenses.map(function(e){return Object.assign({},e)}),history:history.slice()}}
+async function createRecoveryPoint(reason){var p=snapshotPayload(reason);if(!(await verifiedSet("recovery-point",JSON.stringify(p))))throw new Error("تعذر إنشاء نقطة الأمان");renderRecoveryStatus(p);return p}
+function renderRecoveryStatus(p){var e=$("recovery-status");if(!e)return;if(!p){e.textContent="لم يتم إنشاء نقطة أمان يدوية بعد.";return}var d=new Date(p.createdAt);e.textContent="آخر نقطة أمان: "+(p.reason||"محفوظة")+" · "+d.toLocaleString("ar-SA")+" · "+((p.expenses||[]).length)+" عملية"}
+async function loadRecoveryPoint(){return parse(await Store.get("recovery-point"),null)}
+async function restoreRecoveryPoint(){var p=await loadRecoveryPoint();if(!p){showToast("لا توجد نقطة أمان محفوظة",false);return}if(!confirm("استعادة آخر نقطة أمان؟ سيتم استبدال الحالة الحالية."))return;await applyRestorePayload(p,"نقطة الأمان");renderRecoveryStatus(p)}
 
 function mergeCategories(saved){
   var defaults={};DEFAULT_CATEGORIES.forEach(function(c){defaults[c.name]=c});
@@ -648,21 +711,45 @@ function setPropertyOptions(){
 function setMeterOptions(){
   var s=$("f-meter"),prev=s.value,prop=$("f-property").value;s.innerHTML='<option value="">اختر العداد</option>';ELECTRIC_METERS.filter(function(m){return m.property===prop}).forEach(function(m){var o=document.createElement("option");o.value=m.id;o.textContent=m.name;s.appendChild(o)});if(prev)s.value=prev
 }
+function renderDetailChips(){
+  var host=$("detail-chips"),cat=$("f-category").value,list=DETAIL_PRESETS[cat]||[];host.innerHTML="";
+  $("detail-chips-field").classList.toggle("hidden",!list.length);
+  list.forEach(function(label){var b=document.createElement("button");b.type="button";b.className="detail-chip";b.textContent=label;b.addEventListener("click",function(){$("f-desc").value=label;$("f-desc").dispatchEvent(new Event("input",{bubbles:true}));$("f-amount").focus()});host.appendChild(b)});
+}
+function clearFieldErrors(){["f-amount","f-desc","f-category","f-vehicle","f-property","f-meter","f-date"].forEach(function(id){var e=$(id);if(e)e.removeAttribute("aria-invalid")})}
+function markInvalid(id){var e=$(id);if(e)e.setAttribute("aria-invalid","true")}
+function duplicateOf(c){
+  var nd=normalize(c.desc);return expenses.find(function(e){return e.date===c.date&&Math.round(Number(e.amount)*100)===Math.round(Number(c.amount)*100)&&e.category===c.category&&normalize(e.desc)===nd&&(e.vehicle||"")===(c.vehicle||"")&&(e.property||"")===(c.property||"")&&(e.meter||"")===(c.meter||"")})||null;
+}
+function showDuplicate(existing,candidate){pendingCandidate=candidate;$("duplicate-copy").textContent="وجدت عملية مطابقة بتاريخ "+existing.date+" بمبلغ "+money(existing.amount)+" ووصف «"+existing.desc+"».";$("duplicate-box").classList.add("show")}
+function hideDuplicate(){pendingCandidate=null;$("duplicate-box").classList.remove("show")}
+async function persistCandidate(c){
+  var btn=$("add-expense");if(addBusy)return;addBusy=true;btn.disabled=true;
+  try{c.createdAt=c.createdAt||new Date().toISOString();c.updatedAt=new Date().toISOString();expenses.push(c);if(!(await saveExpenses())){expenses.pop();throw new Error("تعذر التحقق من حفظ العملية")};$("f-amount").value="";$("f-desc").value="";$("f-note").value="";$("suggestion").style.display="none";hideDuplicate();render();showToast("تم حفظ المصروف بنجاح",false);setTimeout(function(){$("f-amount").focus()},100)}catch(e){formErr(e.message||"تعذر حفظ المصروف")}
+  finally{addBusy=false;btn.disabled=false}
+}
+
 function updateDynamicFields(){
   var cat=$("f-category").value,veh=isVehicleCategory(cat),prop=isPropertyCategory(cat),meter=needsMeter(cat);$("vehicle-field").classList.toggle("hidden",!veh);$("property-field").classList.toggle("hidden",!prop);$("meter-field").classList.toggle("hidden",!meter);
   if(!veh)$("f-vehicle").value="";if(prop){setPropertyOptions();if(meter)setMeterOptions()}else{$("f-property").value="";$("f-meter").value=""}
+  renderDetailChips();hideDuplicate();
 }
 function syncSettings(){$("budget").value=config.budget;$("cycle-days").value=config.cycleDays;$("cycle-start").value=config.cycleStart;$("savings-target").value=config.savingsTarget;$("f-date").value=todayISO();$("f-date").max=todayISO();buildCategorySelect();updateDynamicFields()}
 
 async function addExpense(){
-  var amount=Number($("f-amount").value),desc=$("f-desc").value.trim(),cat=$("f-category").value,date=$("f-date").value||todayISO(),vehicle=isVehicleCategory(cat)?$("f-vehicle").value:"",property=isPropertyCategory(cat)?$("f-property").value:"",meter=needsMeter(cat)?$("f-meter").value:"",note=$("f-note").value.trim(),err=$("form-error");
-  if(!isFinite(amount)||amount<=0){return formErr("أدخل مبلغًا صحيحًا أكبر من صفر.")}
-  if(!desc)return formErr("اكتب وصفًا مختصرًا للمصروف.");
-  if(date>todayISO())return formErr("لا يمكن تسجيل مصروف بتاريخ مستقبلي.");
-  if(isVehicleCategory(cat)&&!vehicle)return formErr("حدد المركبة: دودج أو هايلاندر.");
-  if(isPropertyCategory(cat)&&!property)return formErr("حدد العقار أو الجهة.");
-  if(needsMeter(cat)&&!meter)return formErr("حدد عداد الكهرباء.");
-  err.style.display="none";expenses.push({id:uid(),date:date,category:cat,vehicle:vehicle,property:property,meter:meter,desc:desc,note:note,amount:Math.round(amount*100)/100,synced:false});await saveExpenses();$("f-amount").value="";$("f-desc").value="";$("f-note").value="";$("suggestion").style.display="none";render();showToast("تم حفظ المصروف بنجاح",false);setTimeout(function(){$("f-amount").focus()},100)
+  clearFieldErrors();hideDuplicate();var err=$("form-error");err.style.display="none";
+  var amount=Number($("f-amount").value),desc=$("f-desc").value.trim().replace(/\s+/g," "),cat=$("f-category").value,date=$("f-date").value||todayISO(),vehicle=isVehicleCategory(cat)?$("f-vehicle").value:"",property=isPropertyCategory(cat)?$("f-property").value:"",meter=needsMeter(cat)?$("f-meter").value:"",note=$("f-note").value.trim().replace(/\s+/g," ");
+  if(!isFinite(amount)||amount<=0){markInvalid("f-amount");return formErr("أدخل مبلغًا صحيحًا أكبر من صفر.")}
+  if(amount>1000000){markInvalid("f-amount");return formErr("المبلغ أعلى من الحد المنطقي للإدخال. راجعه قبل الحفظ.")}
+  if(!desc){markInvalid("f-desc");return formErr("اكتب وصفًا مختصرًا للمصروف.")}
+  if(!cat||!categories.some(function(c){return c.name===cat})){markInvalid("f-category");return formErr("اختر تصنيفًا صحيحًا.")}
+  if(date>todayISO()){markInvalid("f-date");return formErr("لا يمكن تسجيل مصروف بتاريخ مستقبلي.")}
+  if(isVehicleCategory(cat)&&!vehicle){markInvalid("f-vehicle");return formErr("حدد المركبة: دودج أو هايلاندر.")}
+  if(isPropertyCategory(cat)&&!property){markInvalid("f-property");return formErr("حدد العقار أو الجهة.")}
+  if(needsMeter(cat)&&!meter){markInvalid("f-meter");return formErr("حدد عداد الكهرباء.")}
+  var candidate={id:uid(),date:date,category:cat,vehicle:vehicle,property:property,meter:meter,desc:desc.slice(0,140),note:note.slice(0,80),amount:Math.round(amount*100)/100,synced:false};
+  var dupe=duplicateOf(candidate);if(dupe){showDuplicate(dupe,candidate);return}
+  await persistCandidate(candidate);
 }
 function formErr(t){var e=$("form-error");e.textContent=t;e.style.display="block"}
 
@@ -714,13 +801,13 @@ async function saveEdit(){
   if(isPropertyCategory(cat)&&!property)return fail("حدد العقار.");
   if(needsMeter(cat)&&!meter)return fail("حدد عداد الكهرباء.");
   e.amount=Math.round(amount*100)/100;e.date=date;e.desc=desc;e.category=cat;e.vehicle=vehicle;e.property=property;e.meter=meter;e.note=$("edit-note").value.trim();
-  e.synced=false;
-  await saveExpenses();
+  e.synced=false;e.updatedAt=new Date().toISOString();
+  if(!(await saveExpenses()))return fail("تعذر التحقق من حفظ التعديل.");
   $("edit-modal").classList.remove("show");editingId=null;render();showToast("تم تعديل العملية",false);
 }
 
-async function removeExpense(id){var i=expenses.findIndex(function(e){return e.id===id});if(i<0)return;pendingDelete={item:expenses[i],index:i};expenses.splice(i,1);await saveExpenses();render();showToast("تم حذف العملية",true);clearTimeout(undoTimer);undoTimer=setTimeout(function(){pendingDelete=null;$("toast").classList.remove("show")},5000)}
-async function undo(){if(!pendingDelete)return;expenses.splice(pendingDelete.index,0,pendingDelete.item);pendingDelete=null;await saveExpenses();render();$("toast").classList.remove("show")}
+async function removeExpense(id){var i=expenses.findIndex(function(e){return e.id===id});if(i<0)return;var item=expenses[i];expenses.splice(i,1);if(!(await saveExpenses())){expenses.splice(i,0,item);render();showToast("تعذر التحقق من الحذف، لم تتغير البيانات",false);return}pendingDelete={item:item,index:i};render();showToast("تم حذف العملية",true);clearTimeout(undoTimer);undoTimer=setTimeout(function(){pendingDelete=null;$("toast").classList.remove("show")},5000)}
+async function undo(){if(!pendingDelete)return;var p=pendingDelete;expenses.splice(p.index,0,p.item);if(!(await saveExpenses())){expenses.splice(p.index,1);showToast("تعذر التراجع بأمان",false);return}pendingDelete=null;render();$("toast").classList.remove("show")}
 function showToast(text,undoable){$("toast-text").textContent=text;$("undo-btn").classList.toggle("hidden",!undoable);$("toast").classList.add("show");if(!undoable)setTimeout(function(){$("toast").classList.remove("show")},2200)}
 
 function go(view){currentView=view;document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.dataset.view===view)});document.querySelectorAll(".navbtn").forEach(function(b){b.classList.toggle("active",b.dataset.go===view)});window.scrollTo({top:0,behavior:"smooth"});if(view==="add")setTimeout(function(){$("f-amount").focus()},160)}
@@ -729,10 +816,11 @@ function download(name,text,type){var blob=new Blob([text],{type:type||"text/pla
 function fallbackCopy(text){var ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.focus();ta.select();var ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();return ok}
 async function copySync(){
   var p=expenses.filter(function(e){return e.synced===false}).sort(function(a,b){return a.date.localeCompare(b.date)});if(!p.length){$("sync-hint").textContent="لا توجد عمليات جديدة.";return}
-  var by={};p.forEach(function(e){(by[e.date]=by[e.date]||[]).push(e)});var lines=["عمليات جديدة من FuelMind:"];Object.keys(by).sort().forEach(function(d){lines.push("",d+":");by[d].forEach(function(e){var tags=[e.category];if(e.vehicle)tags.push(vehicleName(e.vehicle));if(e.property)tags.push(propertyName(e.property));if(e.meter)tags.push(meterName(e.meter));lines.push("- "+Number(e.amount).toFixed(2)+" ريال — "+e.desc+" ("+tags.join(" · ")+")")})});var text=lines.join("\n"),ok=false;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);ok=true}}catch(e){}if(!ok)ok=fallbackCopy(text);if(!ok){$("sync-hint").textContent="تعذر النسخ تلقائيًا، ولم تتغير حالة العمليات.";return}p.forEach(function(e){e.synced=true});await saveExpenses();$("sync-hint").textContent="تم نسخ "+p.length+" عملية بنجاح.";render()
+  var by={};p.forEach(function(e){(by[e.date]=by[e.date]||[]).push(e)});var lines=["عمليات جديدة من FuelMind:"];Object.keys(by).sort().forEach(function(d){lines.push("",d+":");by[d].forEach(function(e){var tags=[e.category];if(e.vehicle)tags.push(vehicleName(e.vehicle));if(e.property)tags.push(propertyName(e.property));if(e.meter)tags.push(meterName(e.meter));lines.push("- "+Number(e.amount).toFixed(2)+" ريال — "+e.desc+" ("+tags.join(" · ")+")")})});var text=lines.join("\n"),ok=false;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(text);ok=true}}catch(e){}if(!ok)ok=fallbackCopy(text);if(!ok){$("sync-hint").textContent="تعذر النسخ تلقائيًا، ولم تتغير حالة العمليات.";return}var prev=p.map(function(e){return e.synced});p.forEach(function(e){e.synced=true});if(!(await saveExpenses())){p.forEach(function(e,i){e.synced=prev[i]});$("sync-hint").textContent="تم النسخ، لكن تعذر التحقق من تحديث حالة المزامنة.";return}$("sync-hint").textContent="تم نسخ "+p.length+" عملية بنجاح.";render()
 }
 function exportCSV(){var rows=[["التاريخ","البند الرئيسي","الفئة","المركبة","العقار","العداد","الوصف","الملاحظة","النوع","المبلغ"]];expenses.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(e){rows.push([e.date,catGroup(e.category),e.category,vehicleName(e.vehicle),propertyName(e.property),meterName(e.meter),e.desc,e.note||"",kindLabel(catKind(e.category)),e.amount])});download("FuelMind-"+config.cycleStart+".csv","\uFEFF"+rows.map(function(r){return r.map(csvSafe).join(",")}).join("\r\n"),"text/csv;charset=utf-8")}
-function backup(){download("FuelMind-backup-"+todayISO()+".json",JSON.stringify({product:"FuelMind",version:"8.1",exportedAt:new Date().toISOString(),config:config,categories:categories,expenses:expenses,history:history},null,2),"application/json;charset=utf-8")}
+async function sha256(text){if(!(window.crypto&&crypto.subtle))return"";var buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("")}
+async function backup(){var core={product:"FuelMind",version:"1.3",schema:2,exportedAt:new Date().toISOString(),config:config,categories:categories,expenses:expenses,history:history};var canonical=JSON.stringify(core);var hash=await sha256(canonical);var out=Object.assign({},core,{integrity:{algorithm:hash?"SHA-256":"none",hash:hash,records:expenses.length}});download("FuelMind-backup-"+todayISO()+".json",JSON.stringify(out,null,2),"application/json;charset=utf-8");showToast("تم إنشاء نسخة احتياطية محمية",false)}
 async function readRestoreFile(file){
   if(file&&typeof file.text==="function")return await file.text();
   return await new Promise(function(resolve,reject){
@@ -742,23 +830,35 @@ async function readRestoreFile(file){
     r.readAsText(file,"utf-8");
   });
 }
+async function verifyBackupIntegrity(p){
+  if(!p||!p.integrity||p.integrity.algorithm!=="SHA-256"||!p.integrity.hash)return true;
+  var core={product:p.product,version:p.version,schema:p.schema,exportedAt:p.exportedAt,config:p.config,categories:p.categories,expenses:p.expenses,history:p.history};
+  return (await sha256(JSON.stringify(core)))===p.integrity.hash;
+}
 function normalizeRestorePayload(p){
   if(!p||typeof p!=="object")throw new Error("صيغة النسخة غير صحيحة");
   var cfg=p.config||{};
   var ex=Array.isArray(p.expenses)?p.expenses:[];
-  if(!ex.length)throw new Error("النسخة لا تحتوي مصروفات");
-  var clean=ex.filter(function(e){return e&&e.id&&e.date&&e.category&&Number(e.amount)>0}).map(function(e){
-    return Object.assign({vehicle:"",property:"",meter:"",desc:"",note:"",synced:true},e,{amount:Number(e.amount)});
+  if(ex.length>5000)throw new Error("عدد العمليات في النسخة غير منطقي.");
+  var clean=ex.filter(function(e){return e&&e.id&&e.date&&e.category&&Number(e.amount)>0&&Number(e.amount)<=1000000}).map(function(e){
+    return Object.assign({vehicle:"",property:"",meter:"",desc:"",note:"",synced:true},e,{amount:Math.round(Number(e.amount)*100)/100,desc:String(e.desc||"").slice(0,140),note:String(e.note||"").slice(0,80)});
   });
-  if(!clean.length)throw new Error("لم أجد عمليات صالحة في النسخة");
+  if(ex.length&&!clean.length)throw new Error("لم أجد عمليات صالحة في النسخة");
+  var safeCfg=Object.assign({},DEFAULT_CONFIG,cfg);
+  safeCfg.budget=Math.max(1,Math.min(10000000,Number(safeCfg.budget)||10000));
+  safeCfg.cycleDays=Math.min(62,Math.max(1,Number(safeCfg.cycleDays)||30));
+  safeCfg.savingsTarget=Math.max(0,Math.min(safeCfg.budget,Number(safeCfg.savingsTarget)||0));
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(safeCfg.cycleStart||"")))safeCfg.cycleStart=todayISO();
   return {
-    config:Object.assign({},DEFAULT_CONFIG,cfg),
-    categories:Array.isArray(p.categories)?mergeCategories(p.categories):mergeCategories(categories),
+    config:safeCfg,
+    categories:Array.isArray(p.categories)&&p.categories.length<=200?mergeCategories(p.categories):mergeCategories(categories),
     expenses:clean,
-    history:Array.isArray(p.history)?p.history:[]
+    history:Array.isArray(p.history)&&p.history.length<=200?p.history:[]
   };
 }
 async function applyRestorePayload(p,sourceLabel){
+  if(!(await verifyBackupIntegrity(p)))throw new Error("فشل فحص سلامة النسخة الاحتياطية");
+  if(sourceLabel!=="نقطة الأمان")await createRecoveryPoint("قبل الاستعادة");
   var n=normalizeRestorePayload(p);
   config=n.config;categories=n.categories;expenses=n.expenses;history=n.history;
   await saveAll();
@@ -772,6 +872,7 @@ async function restore(file){
   var status=$("restore-status");
   try{
     if(!file)throw new Error("لم يتم اختيار ملف");
+    if(file.size>2*1024*1024)throw new Error("حجم النسخة أكبر من 2 ميجابايت، أوقف الاستعادة وراجع الملف.");
     status.textContent="جارٍ قراءة "+file.name+"…";
     var text=(await readRestoreFile(file)).replace(/^\uFEFF/,"").trim();
     var p=JSON.parse(text);
@@ -805,17 +906,20 @@ async function restoreFromToken(){
     alert(status.textContent);
   }
 }
-async function confirmNewCycle(){var btn=$("cycle-confirm");btn.disabled=true;var snap={id:uid(),cycleStart:config.cycleStart,cycleDays:config.cycleDays,budget:config.budget,savingsTarget:config.savingsTarget,total:totals().total,expenses:expenses.slice(),archivedAt:new Date().toISOString()};history.push(snap);if(!await saveHistory()){history.pop();btn.disabled=false;alert("تعذر حفظ الأرشيف، ولم يتم مسح شيء.");return}expenses=[];config.cycleStart=todayISO();if(!(await saveExpenses())||!(await saveConfig())){expenses=snap.expenses.slice();config.cycleStart=snap.cycleStart;history=history.filter(function(h){return h.id!==snap.id});await saveAll();btn.disabled=false;alert("تعذر بدء الدورة بأمان، وتمت استعادة البيانات.");return}btn.disabled=false;$("cycle-modal").classList.remove("show");syncSettings();render();go("home");showToast("بدأت دورة جديدة بعد الأرشفة",false)}
+async function confirmNewCycle(){var btn=$("cycle-confirm");btn.disabled=true;try{await createRecoveryPoint("قبل بدء دورة جديدة")}catch(e){btn.disabled=false;alert("تعذر إنشاء نقطة أمان، ولم تبدأ دورة جديدة.");return}var snap={id:uid(),cycleStart:config.cycleStart,cycleDays:config.cycleDays,budget:config.budget,savingsTarget:config.savingsTarget,total:totals().total,expenses:expenses.slice(),archivedAt:new Date().toISOString()};history.push(snap);if(!await saveHistory()){history.pop();btn.disabled=false;alert("تعذر حفظ الأرشيف، ولم يتم مسح شيء.");return}expenses=[];config.cycleStart=todayISO();if(!(await saveExpenses())||!(await saveConfig())){expenses=snap.expenses.slice();config.cycleStart=snap.cycleStart;history=history.filter(function(h){return h.id!==snap.id});await saveAll();btn.disabled=false;alert("تعذر بدء الدورة بأمان، وتمت استعادة البيانات.");return}btn.disabled=false;$("cycle-modal").classList.remove("show");syncSettings();render();go("home");showToast("بدأت دورة جديدة بعد الأرشفة",false)}
 
 function bind(){
   document.querySelectorAll(".navbtn").forEach(function(b){b.addEventListener("click",function(){go(b.dataset.go)})});
   $("add-expense").addEventListener("click",addExpense);$("undo-btn").addEventListener("click",undo);
+  $("duplicate-cancel").addEventListener("click",function(){hideDuplicate();$("f-amount").focus()});
+  $("duplicate-force").addEventListener("click",async function(){if(!pendingCandidate)return;var c=pendingCandidate;hideDuplicate();await persistCandidate(c)});
   $("tx-search").addEventListener("input",renderTransactions);$("unsynced-filter").addEventListener("click",function(){showUnsyncedOnly=!showUnsyncedOnly;this.classList.toggle("warn",showUnsyncedOnly);this.textContent=showUnsyncedOnly?"عرض الكل":"غير المرسلة";renderTransactions()});
   $("f-category").addEventListener("change",updateDynamicFields);$("f-property").addEventListener("change",setMeterOptions);
+  $("f-amount").addEventListener("input",hideDuplicate);$("f-date").addEventListener("change",hideDuplicate);
   $("f-desc").addEventListener("input",function(){var text=this.value,s=suggestCategory(text),v=inferVehicle(text),p=inferProperty(text),m=inferMeter(text);if(v)$("f-vehicle").value=v;if(p)$("f-property").value=p;if(m){var mo=ELECTRIC_METERS.find(function(x){return x.id===m});if(mo){$("f-property").value=mo.property;setMeterOptions();$("f-meter").value=m}}if(s){suggestedName=s.name;$("apply-suggestion").textContent=s.group+" ← "+s.name;$("suggestion").style.display="block"}else{$("suggestion").style.display="none";suggestedName=null}});
   $("apply-suggestion").addEventListener("click",function(){if(!suggestedName)return;$("f-category").value=suggestedName;updateDynamicFields();var p=inferProperty($("f-desc").value);if(p)$("f-property").value=p;var v=inferVehicle($("f-desc").value);if(v)$("f-vehicle").value=v;var m=inferMeter($("f-desc").value);if(m){var mo=ELECTRIC_METERS.find(function(x){return x.id===m});if(mo){$("f-property").value=mo.property;setMeterOptions();$("f-meter").value=m}}$("suggestion").style.display="none"});
   $("copy-sync").addEventListener("click",copySync);
-  ["budget","cycle-days","cycle-start","savings-target"].forEach(function(id){$(id).addEventListener("change",async function(){config.budget=Math.max(1,Number($("budget").value)||config.budget);config.cycleDays=Math.min(62,Math.max(1,Number($("cycle-days").value)||config.cycleDays));config.cycleStart=$("cycle-start").value||config.cycleStart;config.savingsTarget=Math.max(0,Number($("savings-target").value)||0);await saveConfig();render()})});
+  ["budget","cycle-days","cycle-start","savings-target"].forEach(function(id){$(id).addEventListener("change",async function(){var prev=Object.assign({},config);config.budget=Math.max(1,Number($("budget").value)||config.budget);config.cycleDays=Math.min(62,Math.max(1,Number($("cycle-days").value)||config.cycleDays));config.cycleStart=$("cycle-start").value||config.cycleStart;config.savingsTarget=Math.max(0,Math.min(config.budget,Number($("savings-target").value)||0));if(!(await saveConfig())){config=prev;syncSettings();showToast("تعذر حفظ الإعدادات بأمان",false);return}render()})});
   $("category-search").addEventListener("input",function(){var s=suggestCategory(this.value);if(this.value.trim()){if(s){$("category-search-result").textContent="الأنسب: "+s.group+" ← "+s.name+" — "+s.desc;$("category-search-result").style.color="var(--teal)"}else{$("category-search-result").textContent="لم أجد تطابقًا واضحًا. راجع البنود الظاهرة أدناه.";$("category-search-result").style.color="var(--gold)"}}else{$("category-search-result").textContent="اكتب كلمة لمعرفة التصنيف المناسب.";$("category-search-result").style.color="var(--muted)"}renderGuide()});
   $("export-csv").addEventListener("click",exportCSV);$("backup-json").addEventListener("click",backup);
   var restoreInput=$("restore-file"),lastRestoreFile="";
@@ -829,6 +933,9 @@ function bind(){
   restoreInput.addEventListener("input",pickRestoreFile);
   restoreInput.addEventListener("change",pickRestoreFile);
   $("restore-token-btn").addEventListener("click",restoreFromToken);
+  $("make-recovery").addEventListener("click",async function(){try{var p=await createRecoveryPoint("نقطة أمان يدوية");showToast("تم إنشاء نقطة أمان",false);renderRecoveryStatus(p)}catch(e){showToast("تعذر إنشاء نقطة الأمان",false)}});
+  $("restore-recovery").addEventListener("click",restoreRecoveryPoint);
+  $("privacy-toggle").addEventListener("click",function(){var on=!document.body.classList.contains("privacy-mode");document.body.classList.toggle("privacy-mode",on);this.classList.toggle("on",on);this.setAttribute("aria-checked",String(on));try{localStorage.setItem("fuelmind-privacy",on?"1":"0")}catch(e){}});
   $("new-cycle").addEventListener("click",function(){var u=expenses.filter(function(e){return e.synced===false}).length;$("cycle-modal-copy").textContent=(u?"لديك "+u+" عملية لم تُنسخ للمحادثة. ":"")+"سيتم أرشفة الدورة الحالية أولًا ثم يبدأ سجل جديد من تاريخ اليوم. لن تُمسح البيانات إذا فشل الأرشيف.";$("cycle-modal").classList.add("show")});$("cycle-cancel").addEventListener("click",function(){$("cycle-modal").classList.remove("show")});$("cycle-confirm").addEventListener("click",confirmNewCycle);$("cycle-modal").addEventListener("click",function(e){if(e.target===this)this.classList.remove("show")});
   $("edit-cancel").addEventListener("click",function(){$("edit-modal").classList.remove("show");editingId=null});
   $("edit-save").addEventListener("click",saveEdit);
@@ -838,8 +945,10 @@ function bind(){
 }
 async function init(){
   bind();await load();render();setSave("جاهز",true);
+  try{var pv=localStorage.getItem("fuelmind-privacy")==="1";document.body.classList.toggle("privacy-mode",pv);$("privacy-toggle").classList.toggle("on",pv);$("privacy-toggle").setAttribute("aria-checked",String(pv))}catch(e){}
+  try{renderRecoveryStatus(await loadRecoveryPoint())}catch(e){}
   if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){
-    try{var reg=await navigator.serviceWorker.register("./sw.js");if(reg&&reg.update)reg.update()}catch(e){}
+    try{var reg=await navigator.serviceWorker.register("./sw.js");if(reg&&reg.update)await reg.update()}catch(e){}
   }
 }
 init();
