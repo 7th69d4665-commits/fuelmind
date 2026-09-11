@@ -10,7 +10,6 @@
 <meta name="apple-mobile-web-app-title" content="FuelMind">
 <meta name="description" content="تطبيق شخصي لتسجيل وتحليل المصروفات اليومية">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
 :root{
   --bg:#07131f;--surface:#0d1d2e;--card:#11243a;--card2:#162b44;--line:#263c55;
@@ -123,7 +122,7 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
     <div class="topline">
       <div class="brand">
         <div class="logo">F</div>
-        <div class="brandtext"><strong>FuelMind</strong><span>المصروف الذكي · النسخة النهائية الآمنة</span></div>
+        <div class="brandtext"><strong>FuelMind</strong><span>المصروف الذكي · النسخة النهائية الآمنة 1.2</span></div>
       </div>
       <div class="save" id="save-state">جارٍ التحميل</div>
     </div>
@@ -245,10 +244,17 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(221,
         <div class="datagrid">
           <button class="secondary" id="export-csv" type="button">تصدير CSV</button>
           <button class="secondary" id="backup-json" type="button">نسخة JSON</button>
-          <button class="secondary" id="restore-json" type="button">استعادة نسخة</button>
+          <label class="secondary" id="restore-json" for="restore-file" style="display:flex;align-items:center;justify-content:center;cursor:pointer">استعادة نسخة</label>
           <button class="danger" id="new-cycle" type="button">بدء دورة جديدة</button>
         </div>
-        <input id="restore-file" type="file" accept=".json,application/json" class="hidden">
+        <input id="restore-file" type="file" accept=".json,application/json,text/plain" style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none">
+        <div style="margin-top:12px;border-top:1px solid var(--hairline);padding-top:12px">
+          <div style="font-size:11px;font-weight:700;margin-bottom:4px">استعادة بديلة للآيفون</div>
+          <div style="font-size:9.5px;color:var(--muted);line-height:1.7;margin-bottom:8px">إذا لم تستجب نافذة الملفات، الصق رمز الاستعادة الخاص بك هنا ثم اضغط استعادة من الرمز.</div>
+          <textarea id="restore-token" rows="3" placeholder="الصق رمز الاستعادة هنا" style="width:100%;resize:vertical;background:var(--navy-panel-2);border:1px solid var(--hairline);color:var(--ink);border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:11px"></textarea>
+          <button class="secondary" id="restore-token-btn" type="button" style="width:100%;margin-top:8px">استعادة من الرمز</button>
+          <div id="restore-status" style="font-size:10px;color:var(--muted);margin-top:7px;line-height:1.6"></div>
+        </div>
       </div>
       <div class="card" id="install-card">
         <div style="font-size:11px;font-weight:700;margin-bottom:4px">تثبيت FuelMind على الآيفون</div>
@@ -727,7 +733,78 @@ async function copySync(){
 }
 function exportCSV(){var rows=[["التاريخ","البند الرئيسي","الفئة","المركبة","العقار","العداد","الوصف","الملاحظة","النوع","المبلغ"]];expenses.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(e){rows.push([e.date,catGroup(e.category),e.category,vehicleName(e.vehicle),propertyName(e.property),meterName(e.meter),e.desc,e.note||"",kindLabel(catKind(e.category)),e.amount])});download("FuelMind-"+config.cycleStart+".csv","\uFEFF"+rows.map(function(r){return r.map(csvSafe).join(",")}).join("\r\n"),"text/csv;charset=utf-8")}
 function backup(){download("FuelMind-backup-"+todayISO()+".json",JSON.stringify({product:"FuelMind",version:"8.1",exportedAt:new Date().toISOString(),config:config,categories:categories,expenses:expenses,history:history},null,2),"application/json;charset=utf-8")}
-async function restore(file){var reader=new FileReader();reader.onload=async function(){try{var p=JSON.parse(String(reader.result||""));if(!p.config||!Array.isArray(p.expenses)||!Array.isArray(p.categories))throw new Error();config=Object.assign({},DEFAULT_CONFIG,p.config);categories=mergeCategories(p.categories);expenses=p.expenses.filter(function(e){return e&&e.id&&e.date&&e.category&&Number(e.amount)>0});history=Array.isArray(p.history)?p.history:[];await saveAll();syncSettings();render();showToast("تمت استعادة النسخة",false)}catch(e){alert("تعذر استعادة الملف. تأكد أنه نسخة FuelMind JSON.")}$("restore-file").value=""};reader.readAsText(file,"utf-8")}
+async function readRestoreFile(file){
+  if(file&&typeof file.text==="function")return await file.text();
+  return await new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onload=function(){resolve(String(r.result||""))};
+    r.onerror=function(){reject(r.error||new Error("تعذر قراءة الملف"))};
+    r.readAsText(file,"utf-8");
+  });
+}
+function normalizeRestorePayload(p){
+  if(!p||typeof p!=="object")throw new Error("صيغة النسخة غير صحيحة");
+  var cfg=p.config||{};
+  var ex=Array.isArray(p.expenses)?p.expenses:[];
+  if(!ex.length)throw new Error("النسخة لا تحتوي مصروفات");
+  var clean=ex.filter(function(e){return e&&e.id&&e.date&&e.category&&Number(e.amount)>0}).map(function(e){
+    return Object.assign({vehicle:"",property:"",meter:"",desc:"",note:"",synced:true},e,{amount:Number(e.amount)});
+  });
+  if(!clean.length)throw new Error("لم أجد عمليات صالحة في النسخة");
+  return {
+    config:Object.assign({},DEFAULT_CONFIG,cfg),
+    categories:Array.isArray(p.categories)?mergeCategories(p.categories):mergeCategories(categories),
+    expenses:clean,
+    history:Array.isArray(p.history)?p.history:[]
+  };
+}
+async function applyRestorePayload(p,sourceLabel){
+  var n=normalizeRestorePayload(p);
+  config=n.config;categories=n.categories;expenses=n.expenses;history=n.history;
+  await saveAll();
+  var verify=parse(await Store.get("expenses"),[]);
+  if(!Array.isArray(verify)||verify.length!==expenses.length)throw new Error("تعذر التحقق من الحفظ على الجهاز");
+  syncSettings();render();go("home");
+  $("restore-status").textContent="تمت الاستعادة من "+sourceLabel+" — "+expenses.length+" عملية.";
+  showToast("تمت استعادة "+expenses.length+" عملية بنجاح",false);
+}
+async function restore(file){
+  var status=$("restore-status");
+  try{
+    if(!file)throw new Error("لم يتم اختيار ملف");
+    status.textContent="جارٍ قراءة "+file.name+"…";
+    var text=(await readRestoreFile(file)).replace(/^\uFEFF/,"").trim();
+    var p=JSON.parse(text);
+    await applyRestorePayload(p,"الملف");
+  }catch(e){
+    status.textContent="تعذر الاستعادة: "+(e&&e.message?e.message:"خطأ غير معروف");
+    alert(status.textContent);
+  }finally{
+    $("restore-file").value="";
+  }
+}
+function decodeRestoreToken(text){
+  var s=String(text||"").trim().replace(/\s+/g,"").replace(/-/g,"+").replace(/_/g,"/");
+  while(s.length%4)s+="=";
+  var bin=atob(s),bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  var decoded=new TextDecoder("utf-8").decode(bytes);
+  return JSON.parse(decoded);
+}
+async function restoreFromToken(){
+  var status=$("restore-status");
+  try{
+    var text=$("restore-token").value.trim();
+    if(!text)throw new Error("الصق رمز الاستعادة أولًا");
+    status.textContent="جارٍ فحص رمز الاستعادة…";
+    var p=decodeRestoreToken(text);
+    await applyRestorePayload(p,"الرمز");
+    $("restore-token").value="";
+  }catch(e){
+    status.textContent="تعذر الاستعادة من الرمز: "+(e&&e.message?e.message:"خطأ غير معروف");
+    alert(status.textContent);
+  }
+}
 async function confirmNewCycle(){var btn=$("cycle-confirm");btn.disabled=true;var snap={id:uid(),cycleStart:config.cycleStart,cycleDays:config.cycleDays,budget:config.budget,savingsTarget:config.savingsTarget,total:totals().total,expenses:expenses.slice(),archivedAt:new Date().toISOString()};history.push(snap);if(!await saveHistory()){history.pop();btn.disabled=false;alert("تعذر حفظ الأرشيف، ولم يتم مسح شيء.");return}expenses=[];config.cycleStart=todayISO();if(!(await saveExpenses())||!(await saveConfig())){expenses=snap.expenses.slice();config.cycleStart=snap.cycleStart;history=history.filter(function(h){return h.id!==snap.id});await saveAll();btn.disabled=false;alert("تعذر بدء الدورة بأمان، وتمت استعادة البيانات.");return}btn.disabled=false;$("cycle-modal").classList.remove("show");syncSettings();render();go("home");showToast("بدأت دورة جديدة بعد الأرشفة",false)}
 
 function bind(){
@@ -740,7 +817,18 @@ function bind(){
   $("copy-sync").addEventListener("click",copySync);
   ["budget","cycle-days","cycle-start","savings-target"].forEach(function(id){$(id).addEventListener("change",async function(){config.budget=Math.max(1,Number($("budget").value)||config.budget);config.cycleDays=Math.min(62,Math.max(1,Number($("cycle-days").value)||config.cycleDays));config.cycleStart=$("cycle-start").value||config.cycleStart;config.savingsTarget=Math.max(0,Number($("savings-target").value)||0);await saveConfig();render()})});
   $("category-search").addEventListener("input",function(){var s=suggestCategory(this.value);if(this.value.trim()){if(s){$("category-search-result").textContent="الأنسب: "+s.group+" ← "+s.name+" — "+s.desc;$("category-search-result").style.color="var(--teal)"}else{$("category-search-result").textContent="لم أجد تطابقًا واضحًا. راجع البنود الظاهرة أدناه.";$("category-search-result").style.color="var(--gold)"}}else{$("category-search-result").textContent="اكتب كلمة لمعرفة التصنيف المناسب.";$("category-search-result").style.color="var(--muted)"}renderGuide()});
-  $("export-csv").addEventListener("click",exportCSV);$("backup-json").addEventListener("click",backup);$("restore-json").addEventListener("click",function(){$("restore-file").click()});$("restore-file").addEventListener("change",function(){if(this.files&&this.files[0])restore(this.files[0])});
+  $("export-csv").addEventListener("click",exportCSV);$("backup-json").addEventListener("click",backup);
+  var restoreInput=$("restore-file"),lastRestoreFile="";
+  function pickRestoreFile(){
+    if(this.files&&this.files[0]){
+      var f=this.files[0],sig=f.name+"|"+f.size+"|"+f.lastModified;
+      if(sig===lastRestoreFile)return;
+      lastRestoreFile=sig;restore(f).finally(function(){lastRestoreFile=""});
+    }
+  }
+  restoreInput.addEventListener("input",pickRestoreFile);
+  restoreInput.addEventListener("change",pickRestoreFile);
+  $("restore-token-btn").addEventListener("click",restoreFromToken);
   $("new-cycle").addEventListener("click",function(){var u=expenses.filter(function(e){return e.synced===false}).length;$("cycle-modal-copy").textContent=(u?"لديك "+u+" عملية لم تُنسخ للمحادثة. ":"")+"سيتم أرشفة الدورة الحالية أولًا ثم يبدأ سجل جديد من تاريخ اليوم. لن تُمسح البيانات إذا فشل الأرشيف.";$("cycle-modal").classList.add("show")});$("cycle-cancel").addEventListener("click",function(){$("cycle-modal").classList.remove("show")});$("cycle-confirm").addEventListener("click",confirmNewCycle);$("cycle-modal").addEventListener("click",function(e){if(e.target===this)this.classList.remove("show")});
   $("edit-cancel").addEventListener("click",function(){$("edit-modal").classList.remove("show");editingId=null});
   $("edit-save").addEventListener("click",saveEdit);
@@ -751,7 +839,7 @@ function bind(){
 async function init(){
   bind();await load();render();setSave("جاهز",true);
   if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){
-    try{await navigator.serviceWorker.register("./sw.js")}catch(e){}
+    try{var reg=await navigator.serviceWorker.register("./sw.js");if(reg&&reg.update)reg.update()}catch(e){}
   }
 }
 init();
