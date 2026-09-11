@@ -1,0 +1,12 @@
+{
+  "name": "FuelMind — المصروف الذكي",
+  "short_name": "FuelMind",
+  "description": "تطبيق شخصي لتسجيل وتحليل المصروفات اليومية",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07131f",
+  "theme_color": "#07131f"
+}
