@@ -1,5 +1,11 @@
-const CACHE = "fuelmind-v1.3-final";
-const CORE = ["./index.html", "./manifest.webmanifest"];
+const CACHE_PREFIX = "fuelmind-";
+const CACHE = "fuelmind-v1.5-rc3";
+const CORE = ["./index.html", "./core.js", "./app.js", "./manifest.webmanifest"];
+const SCOPE_PATH = new URL(self.registration.scope).pathname;
+
+function isInScope(url) {
+  return url.origin === self.location.origin && url.pathname.startsWith(SCOPE_PATH);
+}
 
 self.addEventListener("install", event => {
   event.waitUntil(
@@ -12,39 +18,44 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(
+        keys
+          .filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE)
+          .map(key => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
-  const req = event.request;
-  const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
 
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req, { cache: "no-store" })
-        .then(resp => {
-          if (resp && resp.ok) {
-            const copy = resp.clone();
-            caches.open(CACHE).then(cache => cache.put("./index.html", copy));
-          }
-          return resp;
-        })
-        .catch(() => caches.match("./index.html"))
-    );
-    return;
-  }
+  const request = event.request;
+  const url = new URL(request.url);
+  if (!isInScope(url)) return;
 
-  event.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(resp => {
-      if (resp && resp.ok) {
-        const copy = resp.clone();
-        caches.open(CACHE).then(cache => cache.put(req, copy));
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+
+    if (request.mode === "navigate") {
+      try {
+        const response = await fetch(request, { cache: "no-store" });
+        if (response && response.ok && response.type === "basic") {
+          await cache.put("./index.html", response.clone());
+        }
+        return response;
+      } catch {
+        return (await cache.match("./index.html")) || Response.error();
       }
-      return resp;
-    }))
-  );
+    }
+
+    const cached = await cache.match(request);
+    if (cached) return cached;
+
+    const response = await fetch(request);
+    if (response && response.ok && response.type === "basic") {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  })());
 });
