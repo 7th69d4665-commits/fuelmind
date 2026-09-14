@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "fuelmind-";
-const CACHE = "fuelmind-v1.5-rc3";
+const CACHE = "fuelmind-v1.5-rc3.1";
 const CORE = ["./index.html", "./core.js", "./app.js", "./manifest.webmanifest"];
 const SCOPE_PATH = new URL(self.registration.scope).pathname;
 
