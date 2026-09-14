@@ -561,7 +561,29 @@ function showToast(text,undoable){$("toast-text").textContent=text;$("undo-btn")
 
 function go(view){currentView=view;document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.dataset.view===view)});document.querySelectorAll(".navbtn").forEach(function(b){b.classList.toggle("active",b.dataset.go===view)});window.scrollTo({top:0,behavior:"smooth"});if(view==="add")setTimeout(function(){$("f-amount").focus()},160)}
 function csvSafe(v){return Core.csvSafe(v)}
-function download(name,text,type){var blob=new Blob([text],{type:type||"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},10000)}
+function download(name,text,type){var blob=new Blob([text],{type:type||"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},10000);return true}
+function isIOSDevice(){var ua=navigator.userAgent||"";return /iPhone|iPad|iPod/i.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+var backupExportBusy=false,preferTextBackupShare=false;
+function shareCandidate(name,text,mime){try{if(typeof File!=="function")return null;var file=new File([text],name,{type:mime});if(!(navigator.share&&navigator.canShare))return null;return navigator.canShare({files:[file]})?{file:file,name:name,mime:mime}:null}catch(e){return null}}
+async function deliverBackupFile(name,text){
+  var ios=isIOSDevice(),jsonCandidate=null,textCandidate=null;
+  if(!preferTextBackupShare)jsonCandidate=shareCandidate(name,text,"application/json");
+  textCandidate=shareCandidate(name.replace(/\.json$/i,".txt"),text,"text/plain");
+  var candidate=jsonCandidate||textCandidate;
+  if(candidate){
+    try{
+      await navigator.share({files:[candidate.file],title:candidate.name});
+      return {method:"share",completed:true,fileName:candidate.name,textFallback:candidate.mime==="text/plain"};
+    }catch(e){
+      if(e&&e.name==="AbortError")return {method:"share",completed:false,cancelled:true};
+      if(candidate===jsonCandidate)preferTextBackupShare=true;
+      return {method:"share",completed:false,error:(e&&e.name)||"ShareError",retryText:!!jsonCandidate};
+    }
+  }
+  if(ios)return {method:"unsupported",completed:false,unsupported:true};
+  download(name,text,"application/json;charset=utf-8");
+  return {method:"download",completed:true,fileName:name,textFallback:false};
+}
 function fallbackCopy(text){var ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.focus();ta.select();var ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();return ok}
 async function copySync(){
   if(!writable())return;var p=expenses.filter(function(e){return e.synced===false}).sort(function(a,b){return a.date.localeCompare(b.date)});if(!p.length){$("sync-hint").textContent="لا توجد عمليات جديدة.";return}
@@ -576,7 +598,7 @@ async function renderBackupFreshness(){
   var seq=++backupFreshnessSeq,box=$("backup-freshness"),title=$("backup-freshness-title"),copy=$("backup-freshness-copy");if(!box||!title||!copy)return;
   box.className="backup-freshness warn";
   if(!backupMeta||!backupMeta.generatedAt){title.textContent="لا توجد نسخة حديثة مسجلة";copy.textContent="أنشئ نسخة JSON بعد اكتمال الاختبار أو بعد أي تغييرات مهمة.";return}
-  if(!backupMeta.confirmedAt){box.className="backup-freshness warn";title.textContent="تم إنشاء نسخة — تأكد من حفظ الملف";copy.textContent="FuelMind بدأ تنزيل ملف JSON، لكنه لا يستطيع التأكد من أن iOS حفظه فعليًا. افتح «الملفات» وتأكد من وجوده ثم اضغط زر التأكيد أدناه.";return}
+  if(!backupMeta.confirmedAt){box.className="backup-freshness warn";title.textContent="تم إنشاء نسخة — تأكد من حفظ الملف";copy.textContent="FuelMind جهّز نسخة احتياطية لكنه لا يستطيع إثبات أن iOS حفظها فعليًا. افتح «الملفات» وتأكد من وجود الملف ثم اضغط زر التأكيد أدناه.";return}
   var quickChanged=backupMeta.signature&&backupMeta.signature!==stateSignature(),currentStrong=(!quickChanged&&backupMeta.secureSignature)?await stateDigest():"",changed=quickChanged||(backupMeta.secureSignature?(!currentStrong||backupMeta.secureSignature!==currentStrong):(backupMeta.signature!==stateSignature()));if(seq!==backupFreshnessSeq)return;var t=new Date(backupMeta.generatedAt).getTime();
   if(!isFinite(t)){box.className="backup-freshness bad";title.textContent="تعذر التحقق من تاريخ النسخة";copy.textContent="أنشئ نسخة جديدة قبل أي تغيير جوهري.";return}
   var age=Math.max(0,Date.now()-t);
@@ -593,14 +615,27 @@ function backupFreshnessWarning(p){
 function exportCSV(){var rows=[["التاريخ","البند الرئيسي","الفئة","المركبة","العقار","العداد","الوصف","الملاحظة","النوع","المبلغ"]];expenses.slice().sort(function(a,b){return a.date.localeCompare(b.date)}).forEach(function(e){rows.push([e.date,catGroup(e.category),e.category,vehicleName(e.vehicle),propertyName(e.property),meterName(e.meter),e.desc,e.note||"",kindLabel(catKind(e.category)),e.amount])});download("FuelMind-"+config.cycleStart+".csv","\uFEFF"+rows.map(function(r){return r.map(csvSafe).join(",")}).join("\r\n"),"text/csv;charset=utf-8")}
 async function sha256(text){if(!(window.crypto&&crypto.subtle))return"";var buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0")}).join("")}
 async function backup(){
-  var core={product:"FuelMind",version:"1.5",schema:3,exportedAt:new Date().toISOString(),config:config,categories:categories,expenses:expenses,history:history};
-  var canonical=JSON.stringify(core),hash=await sha256(canonical);if(!hash){showToast("تعذر تشغيل SHA-256؛ لم يتم إنشاء نسخة غير محمية",false);return}
-  var out=Object.assign({},core,{integrity:{algorithm:"SHA-256",hash:hash,records:expenses.length}});
-  download("FuelMind-backup-"+todayISO()+"-"+pad(new Date().getHours())+pad(new Date().getMinutes())+".json",JSON.stringify(out,null,2),"application/json;charset=utf-8");
-  backupMeta={generatedAt:core.exportedAt,confirmedAt:null,signature:stateSignature(),secureSignature:await stateDigest(),records:expenses.length,total:totals().total,version:"1.5"};
-  if(!(await verifiedSet("backup-meta",JSON.stringify(backupMeta))))showToast("تم إنشاء الملف، لكن تعذر تسجيل وقت النسخة على الجهاز",false);
-  else showToast("تم تجهيز ملف النسخة. تأكد من ظهوره في تطبيق «الملفات» ثم أكّد الحفظ.",false);
-  await renderBackupFreshness();
+  if(backupExportBusy){showToast("تصدير النسخة قيد التنفيذ بالفعل",false);return}
+  backupExportBusy=true;
+  try{
+    var core={product:"FuelMind",version:"1.5",schema:3,exportedAt:new Date().toISOString(),config:config,categories:categories,expenses:expenses,history:history};
+    var canonical=JSON.stringify(core),hash=await sha256(canonical);if(!hash){showToast("تعذر تشغيل SHA-256؛ لم يتم إنشاء نسخة غير محمية",false);return}
+    var out=Object.assign({},core,{integrity:{algorithm:"SHA-256",hash:hash,records:expenses.length}}),text=JSON.stringify(out,null,2);
+    var backupName="FuelMind-backup-"+todayISO()+"-"+pad(new Date().getHours())+pad(new Date().getMinutes())+".json";
+    var delivery=await deliverBackupFile(backupName,text);
+    if(!delivery||!delivery.completed){
+      if(delivery&&delivery.cancelled){showToast("أُلغيت مشاركة النسخة؛ لم يتم تسجيل نسخة جديدة.",false);return}
+      if(delivery&&delivery.retryText){showToast("تعذر مشاركة ملف JSON على iPhone. أعد الضغط على «نسخة JSON» وسيستخدم FuelMind نسخة نصية JSON متوافقة.",false);return}
+      if(delivery&&delivery.unsupported){showToast("تعذر إنشاء ملف قابل للحفظ على iPhone في هذه الجلسة. لم تُسجّل نسخة وهمية؛ استخدم Safari أو رمز الاستعادة البديل.",false);return}
+      showToast("تعذر تسليم ملف النسخة؛ لم تُسجّل نسخة جديدة.",false);return
+    }
+    backupMeta={generatedAt:core.exportedAt,confirmedAt:null,signature:stateSignature(),secureSignature:await stateDigest(),records:expenses.length,total:totals().total,version:"1.5",fileName:delivery.fileName||backupName,delivery:delivery.method};
+    if(!(await verifiedSet("backup-meta",JSON.stringify(backupMeta)))){backupMeta=null;showToast("تم تجهيز الملف، لكن تعذر تسجيل حالة النسخة على الجهاز",false);return}
+    if(delivery.textFallback)showToast("تمت مشاركة نسخة JSON نصية متوافقة مع iPhone. احفظ ملف .txt في «الملفات»؛ يمكن لـFuelMind استعادته لاحقًا، ثم أكّد الحفظ.",false);
+    else if(delivery.method==="share")showToast("تم فتح مشاركة ملف النسخة. اختر «حفظ في الملفات» ثم أكّد وجود الملف من FuelMind.",false);
+    else showToast("تم تجهيز ملف النسخة. تأكد من ظهوره في تطبيق «الملفات» ثم أكّد الحفظ.",false);
+    await renderBackupFreshness();
+  }finally{backupExportBusy=false}
 }
 async function readRestoreFile(file){
   if(file&&typeof file.text==="function")return await file.text();
@@ -699,7 +734,7 @@ async function runIphoneDiagnostics(){
   var before=await readonlyCoreSnapshot(),beforeMem=JSON.stringify(coreState()),pass=0,warn=0,fail=0;
   function add(st,t,c){diagAdd(host,st,t,c);if(st==="pass")pass++;else if(st==="warn")warn++;else fail++}
   try{
-    add("pass","إصدار الفحص","FuelMind 1.5 RC3 Professional Hardened — صفحة الفحص تعمل بالقراءة فقط.");
+    add("pass","إصدار الفحص","FuelMind 1.5 RC3.1 Audited — صفحة الفحص تعمل بالقراءة فقط.");
     add("pass","بصمة الحالة في الذاكرة","البصمة الحالية: "+stateSignature()+" — للمقارنة داخل جلسة الفحص فقط.");
     var ua=navigator.userAgent||"",ios=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);add(ios?"pass":"warn","بيئة iOS / iPhone",ios?"تم التعرف على جهاز iOS.":"لم يستطع المتصفح تأكيد iOS؛ بقية الفحوص تستمر.");
     var secure=location.protocol==="https:"||location.hostname==="localhost";add(secure?"pass":"fail","اتصال آمن",secure?"الصفحة تعمل عبر HTTPS.":"الصفحة ليست على HTTPS، وهذا يمنع بعض خصائص PWA.");
@@ -707,7 +742,7 @@ async function runIphoneDiagnostics(){
     if(navigator.storage&&navigator.storage.persisted){var persisted=await navigator.storage.persisted();add(persisted?"pass":"warn","استمرارية التخزين",persisted?"المتصفح يبلغ أن التخزين مُستمر.":"التخزين ليس مضمون الاستمرار من المتصفح؛ النسخ الاحتياطية الحديثة تبقى ضرورية.")}else add("warn","استمرارية التخزين","واجهة persisted() غير متاحة؛ لا يمكن تأكيد مقاومة حذف التخزين بواسطة النظام.");
     var standalone=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true;add(standalone?"pass":"warn","وضع التطبيق المثبّت",standalone?"FuelMind يعمل كـ PWA مستقل.":"الصفحة مفتوحة داخل المتصفح وليست من أيقونة الشاشة الرئيسية.");
     if("serviceWorker" in navigator){var reg=await navigator.serviceWorker.getRegistration();add(reg&&reg.active?"pass":"warn","Service Worker",reg&&reg.active?"Service Worker نشط: "+(reg.active.scriptURL.split("/").pop()||"sw.js"):"الدعم موجود لكن العامل غير نشط بعد.")}else add("fail","Service Worker","هذا المتصفح لا يدعم Service Worker.");
-    if("caches" in window){var keys=await caches.keys(),fm=keys.filter(function(k){return k.indexOf("fuelmind-v1.5-rc3")>-1});if(fm.length){var cc=await caches.open(fm[0]),coreHits=await Promise.all(["./index.html","./core.js","./app.js","./manifest.webmanifest"].map(function(x){return cc.match(x)}));add(coreHits.every(Boolean)?"pass":"warn","كاش FuelMind 1.5 RC3",coreHits.every(Boolean)?"الكاش RC3 موجود ويحتوي ملفات النواة.":"الكاش RC3 موجود لكن أحد ملفات النواة غير متاح.")}else add("warn","كاش FuelMind 1.5 RC3","لم يظهر كاش RC3 بعد؛ قد يحتاج التطبيق إعادة فتح بعد النشر.")}else add("warn","Cache API","Cache API غير متاح في هذه الجلسة.");
+    if("caches" in window){var keys=await caches.keys(),fm=keys.filter(function(k){return k==="fuelmind-v1.5-rc3.1"});if(fm.length){var cc=await caches.open(fm[0]),coreHits=await Promise.all(["./index.html","./core.js","./app.js","./manifest.webmanifest"].map(function(x){return cc.match(x)}));add(coreHits.every(Boolean)?"pass":"warn","كاش FuelMind 1.5 RC3.1",coreHits.every(Boolean)?"الكاش RC3.1 موجود ويحتوي ملفات النواة.":"الكاش RC3.1 موجود لكن أحد ملفات النواة غير متاح.")}else add("warn","كاش FuelMind 1.5 RC3.1","لم يظهر كاش RC3.1 بعد؛ قد يحتاج التطبيق إعادة فتح بعد النشر.")}else add("warn","Cache API","Cache API غير متاح في هذه الجلسة.");
     var raw=await readonlyCoreSnapshot();if(raw.error)add("fail","قراءة التخزين المحلي",raw.error);else{var parsable=true;CORE_KEYS.forEach(function(k){if(raw[k]!==null){try{JSON.parse(raw[k])}catch(e){parsable=false}}});add(parsable?"pass":"fail","قابلية قراءة بيانات FuelMind",parsable?"تمت قراءة مفاتيح الحالة الأربعة دون كتابة أي قيمة.":"هناك قيمة غير قابلة للتحليل في التخزين المحلي.")}
     var ids={},dup=0,bad=0;expenses.forEach(function(e){if(ids[e.id])dup++;ids[e.id]=1;if(!e.id||!/^\d{4}-\d{2}-\d{2}$/.test(String(e.date||""))||!isFinite(Number(e.amount))||Number(e.amount)<=0)bad++});add(!dup&&!bad?"pass":"fail","سلامة سجل المصروفات",!dup&&!bad?expenses.length+" عملية صالحة، دون معرفات مكررة.":"غير صالح: "+bad+" · معرفات مكررة: "+dup);
     if(navigator.storage&&navigator.storage.estimate){var est=await navigator.storage.estimate(),used=Number(est.usage||0),quota=Number(est.quota||0);add("pass","سعة التخزين","المستخدم تقريبًا "+Math.round(used/1024/1024)+" م.ب من "+Math.round(quota/1024/1024)+" م.ب المتاحة للمتصفح.")}else add("warn","تقدير مساحة التخزين","واجهة تقدير المساحة غير متاحة، ولا يؤثر ذلك على بياناتك الحالية.");
@@ -768,5 +803,5 @@ async function init(){
   try{renderRecoveryStatus(await loadRecoveryPoint())}catch(e){}
   if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){try{var reg=await navigator.serviceWorker.register("./sw.js");if(reg&&reg.update)await reg.update()}catch(e){}}
 }
-if(window.__FUELMIND_TEST_MODE__===true){window.__FUELMIND_TEST_API__=Object.freeze({uid:uid,safeText:safeText,isValidISODate:isValidISODate,sanitizeConfig:sanitizeConfig,sanitizeExpenseArray:sanitizeExpenseArray,sanitizeHistory:sanitizeHistory,decodeRestoreToken:decodeRestoreToken,verifyBackupIntegrity:verifyBackupIntegrity,duplicateOf:duplicateOf,rawEqual:rawEqual,validRawState:validRawState,transactionalCommit:transactionalCommit,recoverInterruptedTransaction:recoverInterruptedTransaction,Store:Store,stateToRaw:stateToRaw,sha256:sha256,csvSafe:csvSafe,__setExpenses:function(v){expenses=v},__getExpenses:function(){return expenses}});}else{init();}
+if(window.__FUELMIND_TEST_MODE__===true){window.__FUELMIND_TEST_API__=Object.freeze({uid:uid,safeText:safeText,isValidISODate:isValidISODate,sanitizeConfig:sanitizeConfig,sanitizeExpenseArray:sanitizeExpenseArray,sanitizeHistory:sanitizeHistory,decodeRestoreToken:decodeRestoreToken,verifyBackupIntegrity:verifyBackupIntegrity,duplicateOf:duplicateOf,rawEqual:rawEqual,validRawState:validRawState,transactionalCommit:transactionalCommit,recoverInterruptedTransaction:recoverInterruptedTransaction,Store:Store,stateToRaw:stateToRaw,sha256:sha256,csvSafe:csvSafe,deliverBackupFile:deliverBackupFile,isIOSDevice:isIOSDevice,__setPreferTextBackupShare:function(v){preferTextBackupShare=!!v},__setExpenses:function(v){expenses=v},__getExpenses:function(){return expenses}});}else{init();}
 })();
